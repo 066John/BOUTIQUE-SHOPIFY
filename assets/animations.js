@@ -1,102 +1,188 @@
-const SCROLL_ANIMATION_TRIGGER_CLASSNAME = 'scroll-trigger';
-const SCROLL_ANIMATION_OFFSCREEN_CLASSNAME = 'scroll-trigger--offscreen';
-const SCROLL_ZOOM_IN_TRIGGER_CLASSNAME = 'animate--zoom-in';
-const SCROLL_ANIMATION_CANCEL_CLASSNAME = 'scroll-trigger--cancel';
+// APEX PERFORMANCE - Main JavaScript
+// Version: 1.0.0
 
-// Scroll in animation logic
-function onIntersection(elements, observer) {
-  elements.forEach((element, index) => {
-    if (element.isIntersecting) {
-      const elementTarget = element.target;
-      if (elementTarget.classList.contains(SCROLL_ANIMATION_OFFSCREEN_CLASSNAME)) {
-        elementTarget.classList.remove(SCROLL_ANIMATION_OFFSCREEN_CLASSNAME);
-        if (elementTarget.hasAttribute('data-cascade'))
-          elementTarget.setAttribute('style', `--animation-order: ${index};`);
-      }
-      observer.unobserve(elementTarget);
-    } else {
-      element.target.classList.add(SCROLL_ANIMATION_OFFSCREEN_CLASSNAME);
-      element.target.classList.remove(SCROLL_ANIMATION_CANCEL_CLASSNAME);
-    }
-  });
-}
+(function() {
+    'use strict';
 
-function initializeScrollAnimationTrigger(rootEl = document, isDesignModeEvent = false) {
-  const animationTriggerElements = Array.from(rootEl.getElementsByClassName(SCROLL_ANIMATION_TRIGGER_CLASSNAME));
-  if (animationTriggerElements.length === 0) return;
+    // Cart Management
+    const CartManager = {
+        init: function() {
+            this.updateCartCount();
+            this.bindEvents();
+        },
 
-  if (isDesignModeEvent) {
-    animationTriggerElements.forEach((element) => {
-      element.classList.add('scroll-trigger--design-mode');
+        updateCartCount: function() {
+            fetch('/cart.js')
+                .then(response => response.json())
+                .then(cart => {
+                    const cartCount = document.querySelector('.cart-count');
+                    if (cartCount) {
+                        cartCount.textContent = cart.item_count;
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        },
+
+        bindEvents: function() {
+            // Add to cart buttons
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('add-to-cart-btn')) {
+                    e.preventDefault();
+                    const variantId = e.target.dataset.variantId;
+                    CartManager.addToCart(variantId, e.target);
+                }
+            });
+        },
+
+        addToCart: function(variantId, button) {
+            const data = {
+                id: variantId,
+                quantity: 1
+            };
+
+            fetch('/cart/add.js', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.updateCartCount();
+                this.showSuccessMessage(button);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        },
+
+        showSuccessMessage: function(button) {
+            const originalText = button.textContent;
+            button.textContent = '✓ AJOUTÉ';
+            button.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
+            
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.style.background = '';
+            }, 2000);
+        }
+    };
+
+    // Smooth Scroll
+    const SmoothScroll = {
+        init: function() {
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            });
+        }
+    };
+
+    // Scroll Animations
+    const ScrollAnimations = {
+        init: function() {
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -100px 0px'
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('.product-card, .category-card').forEach(el => {
+                observer.observe(el);
+            });
+        }
+    };
+
+    // Header Scroll Effect
+    const HeaderScroll = {
+        init: function() {
+            const header = document.querySelector('header');
+            if (!header) return;
+
+            window.addEventListener('scroll', () => {
+                if (window.pageYOffset > 100) {
+                    header.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.1)';
+                } else {
+                    header.style.boxShadow = '0 2px 20px rgba(0, 0, 0, 0.05)';
+                }
+            });
+        }
+    };
+
+    // Newsletter Form
+    const Newsletter = {
+        init: function() {
+            const form = document.querySelector('.newsletter-form');
+            if (!form) return;
+
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const email = form.querySelector('input[type="email"]').value;
+                
+                // Shopify customer form submission
+                fetch('/contact', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `contact[email]=${encodeURIComponent(email)}&contact[tags]=newsletter`
+                })
+                .then(() => {
+                    Newsletter.showSuccess();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            });
+        },
+
+        showSuccess: function() {
+            const successMessage = document.querySelector('.newsletter-success');
+            if (successMessage) {
+                successMessage.classList.add('show');
+                setTimeout(() => {
+                    successMessage.classList.remove('show');
+                }, 5000);
+            }
+        }
+    };
+
+    // Mobile Menu
+    const MobileMenu = {
+        init: function() {
+            const menuBtn = document.querySelector('.mobile-menu-btn');
+            const navLinks = document.querySelector('.nav-links');
+            
+            if (menuBtn && navLinks) {
+                menuBtn.addEventListener('click', () => {
+                    navLinks.classList.toggle('active');
+                });
+            }
+        }
+    };
+
+    // Initialize all modules on DOM ready
+    document.addEventListener('DOMContentLoaded', function() {
+        CartManager.init();
+        SmoothScroll.init();
+        ScrollAnimations.init();
+        HeaderScroll.init();
+        Newsletter.init();
+        MobileMenu.init();
     });
-    return;
-  }
 
-  const observer = new IntersectionObserver(onIntersection, {
-    rootMargin: '0px 0px -50px 0px',
-  });
-  animationTriggerElements.forEach((element) => observer.observe(element));
-}
-
-// Zoom in animation logic
-function initializeScrollZoomAnimationTrigger() {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-  const animationTriggerElements = Array.from(document.getElementsByClassName(SCROLL_ZOOM_IN_TRIGGER_CLASSNAME));
-
-  if (animationTriggerElements.length === 0) return;
-
-  const scaleAmount = 0.2 / 100;
-
-  animationTriggerElements.forEach((element) => {
-    let elementIsVisible = false;
-    const observer = new IntersectionObserver((elements) => {
-      elements.forEach((entry) => {
-        elementIsVisible = entry.isIntersecting;
-      });
-    });
-    observer.observe(element);
-
-    element.style.setProperty('--zoom-in-ratio', 1 + scaleAmount * percentageSeen(element));
-
-    window.addEventListener(
-      'scroll',
-      throttle(() => {
-        if (!elementIsVisible) return;
-
-        element.style.setProperty('--zoom-in-ratio', 1 + scaleAmount * percentageSeen(element));
-      }),
-      { passive: true }
-    );
-  });
-}
-
-function percentageSeen(element) {
-  const viewportHeight = window.innerHeight;
-  const scrollY = window.scrollY;
-  const elementPositionY = element.getBoundingClientRect().top + scrollY;
-  const elementHeight = element.offsetHeight;
-
-  if (elementPositionY > scrollY + viewportHeight) {
-    // If we haven't reached the image yet
-    return 0;
-  } else if (elementPositionY + elementHeight < scrollY) {
-    // If we've completely scrolled past the image
-    return 100;
-  }
-
-  // When the image is in the viewport
-  const distance = scrollY + viewportHeight - elementPositionY;
-  let percentage = distance / ((viewportHeight + elementHeight) / 100);
-  return Math.round(percentage);
-}
-
-window.addEventListener('DOMContentLoaded', () => {
-  initializeScrollAnimationTrigger();
-  initializeScrollZoomAnimationTrigger();
-});
-
-if (Shopify.designMode) {
-  document.addEventListener('shopify:section:load', (event) => initializeScrollAnimationTrigger(event.target, true));
-  document.addEventListener('shopify:section:reorder', () => initializeScrollAnimationTrigger(document, true));
-}
+})();
